@@ -4,7 +4,8 @@ import functools
 
 import jax.numpy as jnp
 import jax.scipy.linalg
-import tornadox
+
+# import tornadox
 
 from pnmol import diffops, discretize, kernels, mesh
 from pnmol.pde import problems
@@ -341,16 +342,172 @@ def spruce_budworm_1d(
     raise ValueError
 
 
+def burgers_1d_discretized(
+    *,
+    bbox=None,
+    dx=0.05,
+    stencil_size_interior=3,
+    stencil_size_boundary=3,
+    t0=0.0,
+    tmax=5.0,
+    y0_fun=None,
+    diffusion_rate=0.05,
+    nugget_gram_matrix_fd=0.0,
+    kernel=None,
+    bcond="dirichlet",
+):
+    burgers = burgers_1d(
+        bbox=bbox,
+        t0=t0,
+        tmax=tmax,
+        y0_fun=y0_fun,
+        diffusion_rate=diffusion_rate,
+        bcond=bcond,
+    )
+    mesh_spatial = mesh.RectangularMesh.from_bbox_1d(burgers.bbox, step=dx)
+
+    if kernel is None:
+        kernel = kernels.SquareExponential()
+
+    burgers.discretize(
+        mesh_spatial=mesh_spatial,
+        kernel=kernel,
+        stencil_size_interior=stencil_size_interior,
+        stencil_size_boundary=stencil_size_boundary,
+        nugget_gram_matrix=nugget_gram_matrix_fd,
+    )
+    return burgers
+
+
+def burgers_1d(
+    *, bbox=None, t0=0.0, tmax=5.0, y0_fun=None, diffusion_rate=0.05, bcond="dirichlet"
+):
+
+    nu = diffops.constant(0.01)
+
+    identity = diffops.identity()
+    gradient = diffops.divergence(is_1d=True)
+    laplace = diffops.laplace()
+
+    diffop = nu * laplace - identity * gradient
+
+    if bbox is None:
+        bbox = [0.0, 1.0]
+    bbox = jnp.asarray(bbox)
+
+    if y0_fun is None:
+        bell_centered = functools.partial(gaussian_bell_1d_centered, bbox=bbox)
+        y0_fun = lambda x: bell_centered(x) * sin_bell_1d(x)
+
+    if bcond == "dirichlet":
+        return problems.LinearEvolutionDirichlet(
+            diffop=diffop,
+            diffop_scale=diffusion_rate,
+            bbox=bbox,
+            t0=t0,
+            tmax=tmax,
+            y0_fun=y0_fun,
+        )
+    elif bcond == "neumann":
+        return problems.LinearEvolutionNeumann(
+            diffop=diffop,
+            diffop_scale=diffusion_rate,
+            bbox=bbox,
+            t0=t0,
+            tmax=tmax,
+            y0_fun=y0_fun,
+        )
+    raise ValueError
+
+
+def burgers_semilinear_1d_discretized(
+    *,
+    bbox=None,
+    dx=0.05,
+    stencil_size_interior=3,
+    stencil_size_boundary=3,
+    t0=0.0,
+    tmax=5.0,
+    y0_fun=None,
+    diffusion_rate=0.05,
+    nugget_gram_matrix_fd=0.0,
+    kernel=None,
+    bcond="dirichlet",
+):
+    burgers = burgers_semilinear_1d(
+        bbox=bbox,
+        t0=t0,
+        tmax=tmax,
+        y0_fun=y0_fun,
+        diffusion_rate=diffusion_rate,
+        bcond=bcond,
+    )
+    mesh_spatial = mesh.RectangularMesh.from_bbox_1d(burgers.bbox, step=dx)
+
+    if kernel is None:
+        kernel = kernels.SquareExponential()
+
+    burgers.discretize(
+        mesh_spatial=mesh_spatial,
+        kernel=kernel,
+        stencil_size_interior=stencil_size_interior,
+        stencil_size_boundary=stencil_size_boundary,
+        nugget_gram_matrix=nugget_gram_matrix_fd,
+    )
+    return burgers
+
+
+def burgers_semilinear_1d(
+    *, bbox=None, t0=0.0, tmax=5.0, y0_fun=None, diffusion_rate=0.05, bcond="dirichlet"
+):
+
+    nu = diffops.constant(0.01)
+
+    identity = diffops.identity()
+    gradient = diffops.divergence(is_1d=True)
+    laplace = diffops.laplace()
+
+    diffop = nu * laplace - identity * gradient
+
+    if bbox is None:
+        bbox = [0.0, 1.0]
+    bbox = jnp.asarray(bbox)
+
+    if y0_fun is None:
+        bell_centered = functools.partial(gaussian_bell_1d_centered, bbox=bbox)
+        y0_fun = lambda x: bell_centered(x) * sin_bell_1d(x)
+
+    if bcond == "dirichlet":
+        return problems.SemiLinearEvolutionDirichlet(
+            diffop=diffop,
+            diffop_scale=diffusion_rate,
+            bbox=bbox,
+            t0=t0,
+            tmax=tmax,
+            y0_fun=y0_fun,
+        )
+    elif bcond == "neumann":
+        return problems.SemiLinearEvolutionNeumann(
+            diffop=diffop,
+            diffop_scale=diffusion_rate,
+            bbox=bbox,
+            t0=t0,
+            tmax=tmax,
+            y0_fun=y0_fun,
+        )
+    raise ValueError
+
+
 # A bunch of initial condition defaults. They all adhere to Dirichlet conditions.
 
 
 def gaussian_bell_1d_centered(x, bbox, width=1.0):
     midpoint = 0.5 * (bbox[1] + bbox[0])
-    return jnp.exp(-((x - midpoint) ** 2) / width ** 2)
+    return jnp.exp(-((x - midpoint) ** 2) / width**2)
 
 
 def gaussian_bell_1d(x):
-    return jnp.exp(-(x ** 2))
+    return jnp.exp(-(x**2))
 
 
 def sin_bell_1d(x):

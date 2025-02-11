@@ -28,15 +28,14 @@ def solve_pde_reference(pde, *, high_res_factor_dx):
     mean = mean.squeeze()
     print("reference", mean)
 
-    i_mean = jnp.split(mean, 3)[0]
-    i_mean = i_mean[high_res_factor_dx - 1 :: high_res_factor_dx]
+    i_mean = mean[high_res_factor_dx - 1 :: high_res_factor_dx]
 
     return i_mean
 
 
 def solve_pde_pnmol_white(pde, *, dt, nu, progressbar, kernel):
     steprule = pnmol.odetools.step.Constant(dt)
-    ek1 = pnmol.white.SemiLinearWhiteNoiseEK1(
+    ek1 = pnmol.white.LinearWhiteNoiseEK1(
         num_derivatives=nu, steprule=steprule, spatial_kernel=kernel
     )
 
@@ -49,12 +48,9 @@ def solve_pde_pnmol_white(pde, *, dt, nu, progressbar, kernel):
     mean, std, cov = read_mean_and_std_and_cov(final_state, E0)
     print("white", mean)
 
-    i_mean, i_std = jnp.split(mean, 3)[0], jnp.split(std, 3)[0]
-    i_mean, i_std = i_mean[1:-1], i_std[1:-1]
+    i_mean, i_std = mean[1:-1], std[1:-1]
 
-    blocks = [jnp.split(c_row, 3, axis=1) for c_row in jnp.split(cov, 3, axis=0)]
-    i_cov = blocks[1][1]
-    i_cov = i_cov[1:-1, 1:-1]
+    i_cov = cov[1:-1, 1:-1]
 
     return i_mean, i_std, i_cov, elapsed_time
 
@@ -76,10 +72,9 @@ def solve_pde_tornadox(pde, *, dt, nu, progressbar):
     E0 = ek1.iwp.projection_matrix(0)
     mean, std, cov = read_mean_and_std_and_cov(final_state, E0)
     print("tornadox", mean)
-    i_mean, i_std = jnp.split(mean, 3)[0], jnp.split(std, 3)[0]
+    i_mean, i_std = mean, std
 
-    blocks = [jnp.split(c_row, 3, axis=1) for c_row in jnp.split(cov, 3, axis=0)]
-    i_cov = blocks[1][1]
+    i_cov = cov
 
     return i_mean, i_std, i_cov, elapsed_time
 
@@ -163,34 +158,26 @@ num_exp_total = len(DXs) * len(DTs)
 #     pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise(output_scale=1e-3), num=3
 # )
 
-KERNEL_DIFFUSION_PNMOL = pnmol.kernels.duplicate(
-    pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise(), num=3
-)
+KERNEL_DIFFUSION_PNMOL = pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise()
 for i_dx, dx in enumerate(sorted(DXs)):
     # PDE problems
-    PDE_PNMOL = pnmol.pde.examples.sir_1d_discretized(
+    PDE_PNMOL = pnmol.pde.examples.burgers_1d_discretized(
         t0=T0,
         tmax=TMAX,
         dx=dx,
         stencil_size_interior=STENCIL_SIZE,
         stencil_size_boundary=STENCIL_SIZE + 2,
-        diffusion_rate_S=DIFFUSION_RATE,
-        diffusion_rate_I=DIFFUSION_RATE,
-        diffusion_rate_R=DIFFUSION_RATE,
         nugget_gram_matrix_fd=NUGGET_COV_FD,
         kernel=pnmol.kernels.SquareExponential(),
     )
 
-    print(jnp.diag(PDE_PNMOL.E_sqrtm))
-    PDE_REFERENCE = pnmol.pde.examples.sir_1d_discretized(
+    # print(jnp.diag(PDE_PNMOL.E_sqrtm))
+    PDE_REFERENCE = pnmol.pde.examples.burgers_1d_discretized(
         t0=T0,
         tmax=TMAX,
         dx=dx / HIGH_RES_FACTOR_DX,
         stencil_size_interior=STENCIL_SIZE,
         stencil_size_boundary=STENCIL_SIZE + 1,
-        diffusion_rate_S=DIFFUSION_RATE,
-        diffusion_rate_I=DIFFUSION_RATE,
-        diffusion_rate_R=DIFFUSION_RATE,
         nugget_gram_matrix_fd=NUGGET_COV_FD,
         kernel=pnmol.kernels.SquareExponential(),
     )

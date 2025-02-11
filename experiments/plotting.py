@@ -30,7 +30,9 @@ AISTATS_TEXTWIDTH_SINGLE = 3.25
 
 
 def figure_1(
-    path=PATH_RESULTS, methods=("pnmol_white", "pnmol_latent", "tornadox", "reference")
+    # path=PATH_RESULTS, methods=("pnmol_white", "pnmol_latent", "tornadox", "reference")
+    path=PATH_RESULTS,
+    methods=("pnmol_white", "pnmol_latent", "reference"),
 ):
     path = path + "figure1/"
     plt.style.use(STYLESHEETS)
@@ -119,7 +121,7 @@ def figure_1(
 
 
 def figure_1_singlerow(
-    path=PATH_RESULTS, methods=("pnmol_white", "pnmol_latent", "tornadox", "reference")
+    path=PATH_RESULTS, methods=("pnmol_white", "pnmol_latent", "reference")
 ):
     path = path + "figure1/"
     plt.style.use(STYLESHEETS)
@@ -395,23 +397,25 @@ def figure_2(path=PATH_RESULTS):
         "linestyle": "dashdot",
     }
     s2_label = {"label": rf"$r={input_scales[2]}$"}
+    s3_style = {
+        "color": "C2",
+        "linestyle": "--",
+    }
+    s3_label = {"label": rf"$r={input_scales[0]}$"}
 
-    ax_rmse.semilogy(
-        stencil_sizes[:3], rmse_all.T[1][:3], **s1_style, **s1_label, marker="o"
-    )
-    ax_rmse.semilogy(stencil_sizes[6:], rmse_all.T[1][6:], **s1_style, marker="o")
-
+    ax_rmse.semilogy(stencil_sizes, rmse_all.T[0], **s3_style, **s3_label, marker="^")
+    ax_rmse.semilogy(stencil_sizes, rmse_all.T[1], **s1_style, **s1_label, marker="o")
     ax_rmse.semilogy(stencil_sizes, rmse_all.T[2], **s2_style, **s2_label, marker="s")
 
-    # the three hard-coded NaN values
-    ax_rmse.semilogy(
-        stencil_sizes[3:6],
-        jnp.tile(rmse_all.T[1][6], 3),
-        linestyle="",
-        marker="^",
-        color=s1_style["color"],
-        label="Failed run",
-    )
+    # # the three hard-coded NaN values
+    # ax_rmse.semilogy(
+    #     stencil_sizes[3:6],
+    #     jnp.tile(rmse_all.T[1][6], 3),
+    #     linestyle="",
+    #     marker="^",
+    #     color=s1_style["color"],
+    #     label="Failed run",
+    # )
 
     ax_rmse.set_xlabel("Stencil size")
     ax_rmse.set_ylabel("RMSE")
@@ -719,7 +723,7 @@ def figure3_plot_contour(ax, /, *args, **kwargs):
 
 def figure_4():
 
-    dxs = [0.025]
+    dxs = [0.05]
 
     figsize = (AISTATS_LINEWIDTH_DOUBLE, 0.75 * AISTATS_TEXTWIDTH_SINGLE)
     fig, axes = plt.subplots(
@@ -806,3 +810,16 @@ def figure_4():
     ax_chi2.axvspan(0.01, 100.0, color="gray", alpha=0.2)
     plt.savefig("./experiments/results/figure4/figure.pdf", dpi=300)
     plt.show()
+
+
+def main():
+    figure_1()
+    figure_1_singlerow()
+    figure_2()
+    figure_3()
+    figure_3_2x2()
+    figure_4()
+
+
+if __name__ == "__main__":
+    main()

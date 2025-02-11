@@ -1,4 +1,5 @@
 """Code to generate figure 1."""
+
 import pathlib
 
 import jax
@@ -9,6 +10,8 @@ import tornadox
 
 import pnmol
 
+# pde_fun = pnmol.pde.examples.heat_1d_discretized
+pde_fun = pnmol.pde.examples.burgers_1d_discretized
 
 def solve_pde_pnmol_white(pde, *, dt, nu, progressbar, kernel):
     steprule = pnmol.odetools.step.Constant(dt)
@@ -125,7 +128,7 @@ DIFFUSION_RATE = 0.035
 
 # PDE problems
 with jax.disable_jit():
-    PDE_PNMOL = pnmol.pde.examples.heat_1d_discretized(
+    PDE_PNMOL = pde_fun(
         t0=T0,
         tmax=TMAX,
         dx=DX,
@@ -136,7 +139,7 @@ with jax.disable_jit():
         nugget_gram_matrix_fd=NUGGET_COV_FD,
         bcond="dirichlet",
     )
-    PDE_TORNADOX = pnmol.pde.examples.heat_1d_discretized(
+    PDE_TORNADOX = pde_fun(
         t0=T0,
         tmax=TMAX,
         dx=DX,
@@ -147,7 +150,7 @@ with jax.disable_jit():
         nugget_gram_matrix_fd=NUGGET_COV_FD,
         bcond="dirichlet",
     )
-    PDE_REFERENCE = pnmol.pde.examples.heat_1d_discretized(
+    PDE_REFERENCE = pde_fun(
         t0=T0,
         tmax=TMAX,
         dx=DX / HIGH_RES_FACTOR_DX,
@@ -163,10 +166,10 @@ with jax.disable_jit():
 KERNEL_NUGGET = pnmol.kernels.WhiteNoise(output_scale=1e-7)
 KERNEL_DIFFUSION_PNMOL = KERNEL  # + KERNEL_NUGGET
 
-with jax.disable_jit():
-    RESULT_TORNADOX = solve_pde_tornadox(
-        PDE_TORNADOX, dt=DT, nu=NUM_DERIVATIVES, progressbar=PROGRESSBAR
-    )
+# with jax.disable_jit():
+#     RESULT_TORNADOX = solve_pde_tornadox(
+#         PDE_TORNADOX, dt=DT, nu=NUM_DERIVATIVES, progressbar=PROGRESSBAR
+#     )
 
 RESULT_PNMOL_WHITE = solve_pde_pnmol_white(
     PDE_PNMOL,
@@ -190,7 +193,7 @@ RESULT_REFERENCE = solve_pde_reference(
 )
 save_result(RESULT_PNMOL_WHITE, prefix="pnmol_white")
 save_result(RESULT_PNMOL_LATENT, prefix="pnmol_latent")
-save_result(RESULT_TORNADOX, prefix="tornadox")
+# save_result(RESULT_TORNADOX, prefix="tornadox")
 save_result(RESULT_REFERENCE, prefix="reference")
 
 

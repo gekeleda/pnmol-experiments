@@ -2,6 +2,7 @@
 
 Includes time-dependency, boundary conditions, discretisation, and more.
 """
+
 import functools
 
 import jax.numpy as jnp
@@ -90,7 +91,7 @@ class SystemDiscretizationMixIn:
 
         # Read out the coefficients and append to a list
         L_list_scaled, E_sqrtm_list_scaled = [], []
-        for (l, e) in fd_output_scaled:
+        for l, e in fd_output_scaled:
             L_list_scaled.append(l)
             E_sqrtm_list_scaled.append(e)
 
@@ -285,8 +286,6 @@ class DirichletMixIn(_BoundaryConditionMixInInterface):
 
 
 # Add nonlinearities
-
-
 class NonLinearMixIn:
     def __init__(self, *, f, df, df_diagonal, **kwargs):
         self.f = f

@@ -1,5 +1,8 @@
 """Figure 2."""
 
+import sys
+
+import pathlib
 from functools import partial
 
 import jax
@@ -10,6 +13,7 @@ import plotting
 from tqdm import tqdm
 
 import pnmol
+from pnmol import diffops
 
 # Part 1: Maximum likelihood estimation of the input scale.
 
@@ -75,6 +79,9 @@ def sample(key, kernel, mesh_points, nugget_gram_matrix=1e-12):
 
 
 def save_array(arr, /, *, suffix, path="experiments/results/figure2/"):
+    path_path = pathlib.Path(path) / "figure1"
+    if not path_path.is_dir():
+        path_path.mkdir(parents=True)
     _assert_not_nan(arr)
     path_with_suffix = path + suffix
     jnp.save(path_with_suffix, arr)
@@ -85,13 +92,22 @@ def _assert_not_nan(arr):
 
 
 # Define the basic setup: target function, etc.
-obj_fun = jax.vmap(lambda x: jnp.sin(x.dot(x)))
-diffop = pnmol.diffops.laplace()
-truth_fun = jax.vmap(diffop(obj_fun))
+obj_fun_scalar = lambda x: jnp.exp(x.dot(x))
+obj_fun = jax.vmap(obj_fun_scalar)
+
+nu = diffops.constant(0.9)  # 0.9
+
+identity = diffops.identity()
+derivative = diffops.divergence(is_1d=True)
+laplace = diffops.laplace()
+
+diffop = nu * laplace - identity * derivative
+
+truth_fun = jax.vmap(diffop(obj_fun_scalar))
 
 
 # Choose a mesh
-num_mesh_points = 25
+num_mesh_points = 20
 mesh = pnmol.mesh.RectangularMesh(
     jnp.linspace(0, 1, num_mesh_points, endpoint=True)[:, None],
     bbox=jnp.asarray([0.0, 1.0])[:, None],
@@ -103,10 +119,10 @@ scale_mle = input_scale_mle(
     obj=obj_fun,
     num_trial_points=20,  # 20 was good
 )
-
+# print(f"MLE input scale: {scale_mle}")
 
 # Compute all RMSEs
-input_scales = jnp.array([0.2, 0.8, 3.2])
+input_scales = jnp.array([2.0, 0.8, 3.2])
 stencil_sizes = jnp.arange(3, len(mesh), step=2)
 e = partial(
     input_scale_to_rmse, diffop=diffop, mesh=mesh, obj_fun=obj_fun, truth_fun=truth_fun
@@ -124,8 +140,10 @@ L_sparse, E_sparse = e(scale=scale_mle, stencil_size=3)[1]
 L_dense, E_dense = pnmol.discretize.collocation_global(
     diffop=diffop,
     mesh_spatial=mesh,
-    kernel=pnmol.kernels.SquareExponential(input_scale=scale_mle),
-    nugget_cholesky_E=1e-10,
+    kernel=pnmol.kernels.SquareExponential(
+        input_scale=3.2, output_scale=0.01
+    ),  # input_scale = 0.8, output_scale = 0.05
+    nugget_cholesky_E=1e-12,
     nugget_gram_matrix=1e-12,
     symmetrize_cholesky_E=True,
 )

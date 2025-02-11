@@ -66,7 +66,6 @@ r"""Differential operators acting on functions.
     ``https://py-pde.readthedocs.io/en/latest/packages/pde.pdes.html#``
 """
 
-
 import typing
 
 import jax
@@ -156,11 +155,13 @@ class DifferentialOperator:
         return DifferentialOperator(differentiate=comp_of_operators)
 
 
-def divergence():
-    """Divergence of a fun, argnums=argnumsction as the trace of the Jacobian."""
+def divergence(is_1d: bool = False):
+    """Divergence of a function as the trace of the Jacobian."""
 
     def my_div(fun, argnums=0):
         jac = jax.jacrev(fun, argnums=argnums)
+        if is_1d:
+            return lambda *args: jac(*args).squeeze()
         return lambda *args: jnp.trace(jac(*args))
 
     return DifferentialOperator(my_div)

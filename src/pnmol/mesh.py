@@ -34,7 +34,7 @@ class Mesh(abc.ABC):
             interior_pts, _ = self.interior
             boundary_pts, _ = self.boundary
             self.points = jnp.vstack((interior_pts, boundary_pts))
-            self._tree = scipy.spatial.KDTree(data=self.points)
+            self._tree = scipy.spatial.KDTree(data=self.points.to_py())
         except NotImplementedError:
             raise NotImplementedError(
                 "sort() is only available if boundary and interior are available."
@@ -130,10 +130,18 @@ class RectangularMesh(Mesh):
         return cls(jnp.array(list(zip(X_mesh.flatten(), Y_mesh.flatten()))))
 
     def neighbours(self, point, num):
+        # Safeguard input `point`
+        if not isinstance(point, np.ndarray):
+            point = point.to_py()
+        if point.ndim == 0:  # Ensure point is at least 1D
+            point = np.expand_dims(point, axis=0)
+
         if num <= 0:
             raise ValueError("num >= 1 required!")
         elif num == 1:
             return RectangularMesh(points=point[None, :])
+        num = int(num)
+
         distances, indices = self._tree.query(x=point, k=num)
         neighbours = self.points[indices]
         return neighbours, indices

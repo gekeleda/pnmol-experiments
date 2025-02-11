@@ -1,6 +1,5 @@
 """Work-precision diagrams and so on."""
 
-
 import time
 
 import jax
@@ -14,7 +13,7 @@ import pnmol
 pde_kwargs = {"t0": 0.0, "tmax": 6.0}
 
 for dx in [0.01, 0.05, 0.2]:
-    pde = pnmol.pde.examples.lotka_volterra_1d_discretized(
+    pde = pnmol.pde.examples.burgers_1d_discretized(
         **pde_kwargs,
         dx=dx,
         stencil_size_interior=3,
@@ -23,7 +22,7 @@ for dx in [0.01, 0.05, 0.2]:
     ivp = pde.to_tornadox_ivp()
 
     ref_scale = 7
-    pde_ref = pnmol.pde.examples.lotka_volterra_1d_discretized(
+    pde_ref = pnmol.pde.examples.burgers_1d_discretized(
         **pde_kwargs,
         dx=dx / ref_scale,
     )
@@ -43,15 +42,11 @@ for dx in [0.01, 0.05, 0.2]:
     )
 
     print("solved")
-    u_reference_full, v_reference_full = jnp.split(ref_sol.y[:, -1], 2)
-    u_reference, v_reference = (
-        u_reference_full[(ref_scale - 1) :: ref_scale],
-        v_reference_full[(ref_scale - 1) :: ref_scale],
-    )
+    print(ref_sol.y[:, -1].shape)
+    u_reference_full = ref_sol.y[:, -1]
+    u_reference = u_reference_full[(ref_scale - 1) :: ref_scale]
 
-    k = pnmol.kernels.duplicate(
-        pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise(), num=2
-    )
+    k = pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise()
 
     pnmol_white_rmse = []
     pnmol_white_nsteps = []
@@ -73,7 +68,7 @@ for dx in [0.01, 0.05, 0.2]:
 
         # [PNMOL-LATENT] Solve
         steps = pnmol.odetools.step.Constant(dt)
-        solver = pnmol.latent.SemiLinearLatentForceEK1(
+        solver = pnmol.latent.LinearLatentForceEK1(  # should be semi-linear?
             num_derivatives=2, steprule=steps, spatial_kernel=k
         )
         time_start = time.time()
@@ -83,12 +78,9 @@ for dx in [0.01, 0.05, 0.2]:
         time_pnmol_latent = time.time() - time_start
 
         # [PNMOL-LATENT] Extract mean
-        mean_state, _ = jnp.split(sol_pnmol_latent.y.mean[0], 2)  # ignore mean_latent
-        u_pnmol_latent_full, v_pnmol_latent_full = jnp.split(mean_state, 2)
-        u_pnmol_latent, v_pnmol_latent = (
-            u_pnmol_latent_full[1:-1],
-            v_pnmol_latent_full[1:-1],
-        )
+        mean_state = sol_pnmol_latent.y.mean[0]
+        u_pnmol_latent_full = mean_state
+        u_pnmol_latent = u_pnmol_latent_full[1:-1]
 
         # [PNMOL-LATENT] Extract covariance: first remove xi, then remove "v"
         cov_final_latent = sol_pnmol_latent.y.cov_sqrtm @ sol_pnmol_latent.y.cov_sqrtm.T
@@ -131,11 +123,8 @@ for dx in [0.01, 0.05, 0.2]:
         time_pnmol_white = time.time() - time_start
 
         # [PNMOL-WHITE] Extract mean
-        u_pnmol_white_full, v_pnmol_white_full = jnp.split(sol_pnmol_white.y.mean[0], 2)
-        u_pnmol_white, v_pnmol_white = (
-            u_pnmol_white_full[1:-1],
-            v_pnmol_white_full[1:-1],
-        )
+        u_pnmol_white_full = sol_pnmol_white.y.mean[0]
+        u_pnmol_white = u_pnmol_white_full[1:-1]
 
         # [PNMOL-WHITE] Extract covariance
         cov_final_white = sol_pnmol_white.y.cov_sqrtm @ sol_pnmol_white.y.cov_sqrtm.T
@@ -175,7 +164,7 @@ for dx in [0.01, 0.05, 0.2]:
         time_mol = time.time() - time_start
 
         # [MOL] Extract mean
-        u_mol, v_mol = jnp.split(sol_mol.y.mean[0], 2)
+        u_mol = sol_mol.y.mean[0]
 
         # [MOL] Extract covariance
         cov_final_mol = sol_mol.y.cov_sqrtm @ sol_mol.y.cov_sqrtm.T
