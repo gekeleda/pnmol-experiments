@@ -48,14 +48,12 @@ def solve_pde_tornadox(pde, *, dt, nu, progressbar):
         steprule=steprule,
         initialization=tornadox.init.Stack(use_df=False),
     )
-    sol, sigma_squared = ek1.solve(ivp, progressbar=progressbar)
-    sigma = jnp.sqrt(sigma_squared)
-    E0 = ek1.iwp.projection_matrix(0)
+    sol, gamma = ek1.solve(ivp, progressbar=progressbar)
+    E0 = ek1.P0
     means, stds = read_mean_and_std(sol, E0)
+    gamma = 1.0  # ???
 
-    means = jnp.pad(means, pad_width=1, mode="constant", constant_values=0.0)[1:-1, ...]
-    stds = jnp.pad(stds, pad_width=1, mode="constant", constant_values=0.0)[1:-1, ...]
-    return means, sigma * stds, sol.t, pde.mesh_spatial.points
+    return means, gamma * stds, sol.t, pde.mesh_spatial.points
 
 
 def solve_pde_reference(pde, *, dt, high_res_factor_dx, high_res_factor_dt):
@@ -115,12 +113,12 @@ DX = 0.2
 HIGH_RES_FACTOR_DX = 12
 HIGH_RES_FACTOR_DT = 8
 NUM_DERIVATIVES = 2
-NUGGET_COV_FD = 0.0
+NUGGET_COV_FD = 1e-12
 STENCIL_SIZE = 3
 PROGRESSBAR = True
 
-INPUT_SCALE = 1.0
-KERNEL = pnmol.kernels.Matern52(input_scale=INPUT_SCALE)
+INPUT_SCALE = 3.2
+KERNEL = pnmol.kernels.SquareExponential(input_scale=INPUT_SCALE, output_scale=0.1)
 
 # Hyperparameters (problem)
 T0, TMAX = 0.0, 3.0
@@ -164,7 +162,7 @@ with jax.disable_jit():
     )
 
 # Solve the PDE with the different methods
-KERNEL_NUGGET = pnmol.kernels.WhiteNoise(output_scale=1e-7)
+KERNEL_NUGGET = pnmol.kernels.WhiteNoise(output_scale=1e-12)
 KERNEL_DIFFUSION_PNMOL = KERNEL  # + KERNEL_NUGGET
 
 # with jax.disable_jit():
@@ -199,3 +197,4 @@ save_result(RESULT_REFERENCE, prefix="reference")
 
 
 # plotting.figure_1()
+plotting.figure_1_singlerow()

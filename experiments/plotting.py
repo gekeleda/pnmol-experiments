@@ -155,31 +155,33 @@ def figure_1_singlerow(
 
     bar_mol = _figure_1_plot_errors(
         ax=ax_mol_error,
-        result=results[2],
+        result=results[0],
         result_reference=results[-1],
         **contour_args,
         **contour_args_errors,
         cmap=cmap_mol,
         # norm=mcolors.LogNorm(vmin=1e-3,vmax=1e3, clip=True)
     )
-    fig.colorbar(bar_mol, ax=ax_mol_error, location="right", ticks=(0.0, 6_500, 13_000))
+    fig.colorbar(bar_mol, ax=ax_mol_error, location="right")
 
     bar_pnmol = _figure_1_plot_errors(
         ax=ax_pnmol_error,
-        result=results[0],
+        result=results[1],
         result_reference=results[-1],
         **contour_args,
         **contour_args_errors,
         cmap=cmap_pnmol,
         # norm=mcolors.LogNorm(vmin=1e-3,vmax=1e3, clip=True)
     )
-    fig.colorbar(bar_pnmol, ax=ax_pnmol_error, location="left", ticks=(0.0, 7.5, 15.0))
+    fig.colorbar(
+        bar_pnmol, ax=ax_pnmol_error, location="left"
+    )  # , ticks=(0.0, 7.5, 15.0))
 
     _figure_1_plot_means(
-        ax=ax_mol_mean, result=results[2], **contour_args, **contour_args_means
+        ax=ax_mol_mean, result=results[0], **contour_args, **contour_args_means
     )
     _figure_1_plot_means(
-        ax=ax_pnmol_mean, result=results[0], **contour_args, **contour_args_means
+        ax=ax_pnmol_mean, result=results[1], **contour_args, **contour_args_means
     )
 
     title_style = {"loc": "left", "fontsize": "small"}
@@ -815,10 +817,10 @@ def figure_4():
 def main():
     figure_1()
     figure_1_singlerow()
-    figure_2()
-    figure_3()
-    figure_3_2x2()
-    figure_4()
+    # figure_2()
+    # figure_3()
+    # figure_3_2x2()
+    # figure_4()
 
 
 if __name__ == "__main__":

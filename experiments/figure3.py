@@ -126,7 +126,7 @@ DXs = 1.0 / (2.0 ** jnp.arange(2, 7))
 
 # Hyperparameters (method)
 HIGH_RES_FACTOR_DX = 10
-NUM_DERIVATIVES = 1
+NUM_DERIVATIVES = 2
 NUGGET_COV_FD = 0.0
 STENCIL_SIZE = 3
 PROGRESSBAR = True

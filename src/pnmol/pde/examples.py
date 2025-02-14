@@ -383,7 +383,7 @@ def burgers_1d(
     *, bbox=None, t0=0.0, tmax=5.0, y0_fun=None, diffusion_rate=0.05, bcond="dirichlet"
 ):
 
-    nu = diffops.constant(0.01)
+    nu = diffops.constant(0.9)
 
     identity = diffops.identity()
     gradient = diffops.divergence(is_1d=True)
