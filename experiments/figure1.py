@@ -13,6 +13,7 @@ import pnmol
 # pde_fun = pnmol.pde.examples.heat_1d_discretized
 pde_fun = pnmol.pde.examples.burgers_1d_discretized
 
+
 def solve_pde_pnmol_white(pde, *, dt, nu, progressbar, kernel):
     steprule = pnmol.odetools.step.Constant(dt)
     ek1 = pnmol.white.LinearWhiteNoiseEK1(
@@ -197,4 +198,4 @@ save_result(RESULT_PNMOL_LATENT, prefix="pnmol_latent")
 save_result(RESULT_REFERENCE, prefix="reference")
 
 
-plotting.figure_1()
+# plotting.figure_1()

@@ -181,4 +181,4 @@ save_array(s2, suffix="s2")
 save_array(s3, suffix="s3")
 
 
-plotting.figure_2()
+# plotting.figure_2()
