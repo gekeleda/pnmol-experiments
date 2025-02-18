@@ -29,8 +29,11 @@ for dx in [0.01, 0.05, 0.2]:
     ivp_ref = pde_ref.to_tornadox_ivp()
     print("assembled")
 
-    print(pde.mesh_spatial.shape)
-    print(pde_ref.mesh_spatial.shape)
+    print(f"spatial_mesh shape", pde.mesh_spatial.shape)
+    print(f"ref spatial_mesh shape", pde_ref.mesh_spatial.shape)
+
+    print(f"y0 shape", ivp.y0.shape)
+
     ref_sol = solve_ivp(
         jax.jit(ivp_ref.f),
         ivp_ref.t_span,
@@ -42,9 +45,10 @@ for dx in [0.01, 0.05, 0.2]:
     )
 
     print("solved")
-    print(ref_sol.y[:, -1].shape)
     u_reference_full = ref_sol.y[:, -1]
     u_reference = u_reference_full[(ref_scale - 1) :: ref_scale]
+    print(f"u_reference_full.shape={u_reference_full.shape}")
+    print(f"u_reference.shape={u_reference.shape}")
 
     k = pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise()
 
@@ -79,22 +83,24 @@ for dx in [0.01, 0.05, 0.2]:
 
         # [PNMOL-LATENT] Extract mean
         mean_state = sol_pnmol_latent.y.mean[0]
-        u_pnmol_latent_full = mean_state
+        u_pnmol_latent_full = jnp.split(mean_state, 2)[0]
         u_pnmol_latent = u_pnmol_latent_full[1:-1]
+
+        print(f"u_pnmol_latent_full.shape={u_pnmol_latent_full.shape}")
+        print(f"cov_sqrtm.shape={sol_pnmol_latent.y.cov_sqrtm.shape}")
+        print(f"E0.shape={solver.E0.shape}")
 
         # [PNMOL-LATENT] Extract covariance: first remove xi, then remove "v"
         cov_final_latent = sol_pnmol_latent.y.cov_sqrtm @ sol_pnmol_latent.y.cov_sqrtm.T
         cov_final_no_xi = jnp.split(
             jnp.split(cov_final_latent, 2, axis=-1)[0], 2, axis=0
         )[0]
+        print(f"cov_final_no_xi.shape={cov_final_no_xi.shape}")
         cov_final_latent_interesting = solver.E0 @ cov_final_no_xi @ solver.E0.T
-        cov_final_latent_u_split_horizontally, _ = jnp.split(
-            cov_final_latent_interesting, 2, axis=-1
-        )
-        cov_final_latent_u_split, _ = jnp.split(
-            cov_final_latent_u_split_horizontally, 2, axis=0
-        )
-        cov_final_latent_u = cov_final_latent_u_split[1:-1, 1:-1]
+
+        print(f"cov_final_latent_interesting.shape={cov_final_latent_interesting.shape}")
+
+        cov_final_latent_u = cov_final_latent_interesting[1:-1, 1:-1]
 
         # [PNMOL-LATENT] Compute error and calibration
         error_pnmol_latent_abs = jnp.abs(u_pnmol_latent - u_reference)
@@ -113,7 +119,7 @@ for dx in [0.01, 0.05, 0.2]:
 
         # [PNMOL-WHITE] Solve
         steps = pnmol.odetools.step.Constant(dt)
-        solver = pnmol.white.SemiLinearWhiteNoiseEK1(
+        solver = pnmol.white.LinearWhiteNoiseEK1(
             num_derivatives=2, steprule=steps, spatial_kernel=k
         )
         time_start = time.time()
@@ -129,13 +135,7 @@ for dx in [0.01, 0.05, 0.2]:
         # [PNMOL-WHITE] Extract covariance
         cov_final_white = sol_pnmol_white.y.cov_sqrtm @ sol_pnmol_white.y.cov_sqrtm.T
         cov_final_white_interesting = solver.E0 @ cov_final_white @ solver.E0.T
-        cov_final_white_u_split_horizontally, _ = jnp.split(
-            cov_final_white_interesting, 2, axis=-1
-        )
-        cov_final_white_u_split, _ = jnp.split(
-            cov_final_white_u_split_horizontally, 2, axis=0
-        )
-        cov_final_white_u = cov_final_white_u_split[1:-1, 1:-1]
+        cov_final_white_u = cov_final_white_interesting[1:-1, 1:-1]
 
         # [PNMOL-WHITE] Compute error and calibration
         error_pnmol_white_abs = jnp.abs(u_pnmol_white - u_reference)
@@ -169,9 +169,7 @@ for dx in [0.01, 0.05, 0.2]:
         # [MOL] Extract covariance
         cov_final_mol = sol_mol.y.cov_sqrtm @ sol_mol.y.cov_sqrtm.T
         cov_final_interesting_mol = ek1.P0 @ cov_final_mol @ ek1.P0.T
-        cov_final_u_mol = jnp.split(
-            jnp.split(cov_final_interesting_mol, 2, axis=-1)[0], 2, axis=0
-        )[0]
+        cov_final_u_mol = cov_final_interesting_mol
 
         # [MOL] Compute error and calibration
         error_mol_abs = jnp.abs(u_mol - u_reference)

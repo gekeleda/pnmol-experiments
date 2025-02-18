@@ -30,7 +30,7 @@ def solve_pde_pnmol_white(pde, *, dt, nu, progressbar, kernel):
 def solve_pde_pnmol_latent(pde, *, dt, nu, progressbar, kernel):
     steprule = pnmol.odetools.step.Constant(dt)
     ek1 = pnmol.latent.LinearLatentForceEK1(
-        num_derivatives=nu, steprule=steprule, spatial_kernel=kernel
+        num_derivatives=nu, steprule=steprule, spatial_kernel=kernel, diffuse_prior_scale=1e4
     )
     sol = ek1.solve(pde, progressbar=progressbar)
     E0 = ek1.state_iwp.projection_matrix(0)
