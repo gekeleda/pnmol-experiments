@@ -400,17 +400,23 @@ def figure_2(path=PATH_RESULTS):
         "color": "C1",
         "linestyle": "-",
     }
-    s1_label = {"label": rf"$r={input_scales[1]}$ (~MLE)"}
+    s1_label = {
+        "label": f"$r={int(input_scales[1])}.{int(10*input_scales[1])-10*int(input_scales[1])}$ (~MLE)"
+    }
     s2_style = {
         "color": "C0",
         "linestyle": "dashdot",
     }
-    s2_label = {"label": rf"$r={input_scales[2]}$"}
+    s2_label = {
+        "label": f"$r={int(input_scales[2])}.{int(10*input_scales[2])-10*int(input_scales[2])}$"
+    }
     s3_style = {
         "color": "C2",
         "linestyle": "--",
     }
-    s3_label = {"label": rf"$r={input_scales[0]}$"}
+    s3_label = {
+        "label": f"$r={int(input_scales[0])}.{int(10*input_scales[0])-10*int(input_scales[0])}$"
+    }
 
     ax_rmse.semilogy(stencil_sizes, rmse_all.T[0], **s3_style, **s3_label, marker="^")
     ax_rmse.semilogy(stencil_sizes, rmse_all.T[1], **s1_style, **s1_label, marker="o")
@@ -824,10 +830,10 @@ def figure_4():
 def main():
     # figure_1()
     # figure_1_singlerow()
-    # figure_2()
+    figure_2()
     # figure_3()
     # figure_3_2x2()
-    figure_4()
+    # figure_4()
 
 
 if __name__ == "__main__":
