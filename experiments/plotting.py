@@ -605,7 +605,7 @@ def figure_3_2x2(path=PATH_RESULTS, methods=("pnmol_white", "tornadox")):
 
     results = [figure3_load_results(prefix=method, path=path) for method in methods]
 
-    figure_size = (AISTATS_TEXTWIDTH_SINGLE, 0.8 * AISTATS_TEXTWIDTH_SINGLE)
+    figure_size = (0.75 * AISTATS_TEXTWIDTH_SINGLE, 0.6 * AISTATS_TEXTWIDTH_SINGLE)
     fig, axes = plt.subplots(
         nrows=2,
         ncols=len(methods),
@@ -732,7 +732,7 @@ def figure3_plot_contour(ax, /, *args, **kwargs):
 
 def figure_4():
 
-    dxs = [0.05]
+    dxs = [0.01, 0.05]  # 0.01, 0.05, 0.2
 
     figsize = (AISTATS_LINEWIDTH_DOUBLE, 0.75 * AISTATS_TEXTWIDTH_SINGLE)
     fig, axes = plt.subplots(
@@ -822,12 +822,12 @@ def figure_4():
 
 
 def main():
-    figure_1()
-    figure_1_singlerow()
+    # figure_1()
+    # figure_1_singlerow()
     # figure_2()
     # figure_3()
     # figure_3_2x2()
-    # figure_4()
+    figure_4()
 
 
 if __name__ == "__main__":
