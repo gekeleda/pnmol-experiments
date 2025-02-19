@@ -1,5 +1,6 @@
 """Code to generate figure 1."""
 
+import argparse
 import itertools
 import pathlib
 import time
@@ -110,157 +111,226 @@ def save_result(result, /, *, prefix, path="experiments/results"):
     jnp.save(path_dx, result["dx"])
 
 
-#
-# # Ranges
-# DTs = jnp.logspace(
-#     # numpy.log10(0.001), numpy.log10(0.5), num=10, endpoint=True, base=10
-#     numpy.log10(0.01),
-#     numpy.log10(2.5),
-#     num=9,
-#     endpoint=True,
-#     base=10,
-# )
-DTs = 2.0 ** jnp.arange(2, -7, step=-0.5)
+def main():
+    #
+    # # Ranges
+    # DTs = jnp.logspace(
+    #     # numpy.log10(0.001), numpy.log10(0.5), num=10, endpoint=True, base=10
+    #     numpy.log10(0.01),
+    #     numpy.log10(2.5),
+    #     num=9,
+    #     endpoint=True,
+    #     base=10,
+    # )
+    DTs = 2.0 ** jnp.arange(2, -7, step=-0.5)
 
-DXs = 1.0 / (2.0 ** jnp.arange(2, 7))
+    DXs = 1.0 / (2.0 ** jnp.arange(2, 7))
 
-# Hyperparameters (method)
-HIGH_RES_FACTOR_DX = 10
-NUM_DERIVATIVES = 2
-NUGGET_COV_FD = 0.0
-STENCIL_SIZE = 3
-PROGRESSBAR = True
-
-# Hyperparameters (problem)
-T0, TMAX = 0.0, 6.0
-DIFFUSION_RATE = 0.035
-
-
-RESULT_WHITE, RESULT_TORNADOX = [
-    {
-        "error_abs": numpy.zeros((len(DXs), len(DTs))),
-        "error_rel": numpy.zeros((len(DXs), len(DTs))),
-        "std": numpy.zeros((len(DXs), len(DTs))),
-        "runtime": numpy.zeros((len(DXs), len(DTs))),
-        "chi2": numpy.zeros((len(DXs), len(DTs))),
-        "dx": numpy.zeros((len(DXs), len(DTs))),
-        "dt": numpy.zeros((len(DXs), len(DTs))),
-    }
-    for _ in range(2)
-]
-
-i_exp = 0
-num_exp_total = len(DXs) * len(DTs)
-
-
-# Solve the PDE with the different methods
-# KERNEL_DIFFUSION_PNMOL = pnmol.kernels.duplicate(
-#     pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise(output_scale=1e-3), num=3
-# )
-
-KERNEL_DIFFUSION_PNMOL = pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise()
-for i_dx, dx in enumerate(sorted(DXs)):
-    # PDE problems
-    PDE_PNMOL = pnmol.pde.examples.burgers_1d_discretized(
-        t0=T0,
-        tmax=TMAX,
-        dx=dx,
-        stencil_size_interior=STENCIL_SIZE,
-        stencil_size_boundary=STENCIL_SIZE + 2,
-        nugget_gram_matrix_fd=NUGGET_COV_FD,
-        kernel=pnmol.kernels.SquareExponential(),
+    # Create the parser
+    parser = argparse.ArgumentParser(
+        description="A script that processes command line parameters for hyperparameters."
     )
 
-    # print(jnp.diag(PDE_PNMOL.E_sqrtm))
-    PDE_REFERENCE = pnmol.pde.examples.burgers_1d_discretized(
-        t0=T0,
-        tmax=TMAX,
-        dx=dx / HIGH_RES_FACTOR_DX,
-        stencil_size_interior=STENCIL_SIZE,
-        stencil_size_boundary=STENCIL_SIZE + 1,
-        nugget_gram_matrix_fd=NUGGET_COV_FD,
-        kernel=pnmol.kernels.SquareExponential(),
+    # Hyperparameters (method)
+    parser.add_argument(
+        "--HIGH_RES_FACTOR_DX",
+        type=int,
+        default=10,
+        help="High resolution factor for DX (default: 10)",
     )
-    mean_reference = solve_pde_reference(
-        PDE_REFERENCE, high_res_factor_dx=HIGH_RES_FACTOR_DX
+    parser.add_argument(
+        "--NUM_DERIVATIVES",
+        type=int,
+        default=2,
+        help="Number of derivatives (default: 2)",
     )
-    for i_dt, dt in enumerate(sorted(DTs)):
-        i_exp = i_exp + 1
+    parser.add_argument(
+        "--NUGGET_COV_FD",
+        type=float,
+        default=0.0,
+        help="Nugget covariance for finite differences (default: 0.0)",
+    )
+    parser.add_argument(
+        "--STENCIL_SIZE", type=int, default=3, help="Stencil size (default: 3)"
+    )
+    parser.add_argument(
+        "--PROGRESSBAR", action="store_true", help="Show progress bar (default: True)"
+    )
+    parser.add_argument(
+        "--no-PROGRESSBAR",
+        dest="PROGRESSBAR",
+        action="store_false",
+        help="Do not show progress bar",
+    )
+    parser.set_defaults(PROGRESSBAR=True)
 
-        dim = PDE_PNMOL.y0.size
-        print(
-            f"\n======| Experiment {i_exp} of {num_exp_total} +++ dt={dt}, dx={dx} (state dimension: {dim} = 3 * {dim/3}) \n"
+    # Hyperparameters (problem)
+    parser.add_argument(
+        "--T0", type=float, default=0.0, help="Initial time (default: 0.0)"
+    )
+    parser.add_argument(
+        "--TMAX", type=float, default=6.0, help="Maximum time (default: 6.0)"
+    )
+    parser.add_argument(
+        "--DIFFUSION_RATE",
+        type=float,
+        default=0.035,
+        help="Diffusion rate (default: 0.035)",
+    )
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Access the arguments
+    HIGH_RES_FACTOR_DX = args.HIGH_RES_FACTOR_DX
+    NUM_DERIVATIVES = args.NUM_DERIVATIVES
+    NUGGET_COV_FD = args.NUGGET_COV_FD
+    STENCIL_SIZE = args.STENCIL_SIZE
+    PROGRESSBAR = args.PROGRESSBAR
+    T0 = args.T0
+    TMAX = args.TMAX
+    DIFFUSION_RATE = args.DIFFUSION_RATE
+
+    # Print the arguments (for demonstration purposes)
+    print(f"HIGH_RES_FACTOR_DX: {HIGH_RES_FACTOR_DX}")
+    print(f"NUM_DERIVATIVES: {NUM_DERIVATIVES}")
+    print(f"NUGGET_COV_FD: {NUGGET_COV_FD}")
+    print(f"STENCIL_SIZE: {STENCIL_SIZE}")
+    print(f"PROGRESSBAR: {PROGRESSBAR}")
+    print(f"T0: {T0}")
+    print(f"TMAX: {TMAX}")
+    print(f"DIFFUSION_RATE: {DIFFUSION_RATE}")
+
+    RESULT_WHITE, RESULT_TORNADOX = [
+        {
+            "error_abs": numpy.zeros((len(DXs), len(DTs))),
+            "error_rel": numpy.zeros((len(DXs), len(DTs))),
+            "std": numpy.zeros((len(DXs), len(DTs))),
+            "runtime": numpy.zeros((len(DXs), len(DTs))),
+            "chi2": numpy.zeros((len(DXs), len(DTs))),
+            "dx": numpy.zeros((len(DXs), len(DTs))),
+            "dt": numpy.zeros((len(DXs), len(DTs))),
+        }
+        for _ in range(2)
+    ]
+
+    i_exp = 0
+    num_exp_total = len(DXs) * len(DTs)
+
+    # Solve the PDE with the different methods
+    # KERNEL_DIFFUSION_PNMOL = pnmol.kernels.duplicate(
+    #     pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise(output_scale=1e-3), num=3
+    # )
+
+    KERNEL_DIFFUSION_PNMOL = pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise()
+    for i_dx, dx in enumerate(sorted(DXs)):
+        # PDE problems
+        PDE_PNMOL = pnmol.pde.examples.burgers_1d_discretized(
+            t0=T0,
+            tmax=TMAX,
+            dx=dx,
+            stencil_size_interior=STENCIL_SIZE,
+            stencil_size_boundary=STENCIL_SIZE + 2,
+            nugget_gram_matrix_fd=NUGGET_COV_FD,
+            kernel=pnmol.kernels.SquareExponential(),
+            diffusion_rate=DIFFUSION_RATE,
         )
 
-        mean_white, std_white, cov_white, elapsed_time_white = solve_pde_pnmol_white(
-            PDE_PNMOL,
-            dt=dt,
-            nu=NUM_DERIVATIVES,
-            progressbar=PROGRESSBAR,
-            kernel=KERNEL_DIFFUSION_PNMOL,
+        # print(jnp.diag(PDE_PNMOL.E_sqrtm))
+        PDE_REFERENCE = pnmol.pde.examples.burgers_1d_discretized(
+            t0=T0,
+            tmax=TMAX,
+            dx=dx / HIGH_RES_FACTOR_DX,
+            stencil_size_interior=STENCIL_SIZE,
+            stencil_size_boundary=STENCIL_SIZE + 1,
+            nugget_gram_matrix_fd=NUGGET_COV_FD,
+            kernel=pnmol.kernels.SquareExponential(),
         )
-
-        (
-            mean_tornadox,
-            std_tornadox,
-            cov_tornadox,
-            elapsed_time_tornadox,
-        ) = solve_pde_tornadox(
-            PDE_PNMOL, dt=dt, nu=NUM_DERIVATIVES, progressbar=PROGRESSBAR
+        mean_reference = solve_pde_reference(
+            PDE_REFERENCE, high_res_factor_dx=HIGH_RES_FACTOR_DX
         )
+        for i_dt, dt in enumerate(sorted(DTs)):
+            i_exp = i_exp + 1
 
-        error_white_abs = jnp.abs(mean_white - mean_reference)
-        error_tornadox_abs = jnp.abs(mean_tornadox - mean_reference)
-        rmse_white_rel = jnp.linalg.norm(error_white_abs / mean_reference) / jnp.sqrt(
-            mean_reference.size
-        )
-        rmse_white_abs = jnp.linalg.norm(error_white_abs) / jnp.sqrt(
-            mean_reference.size
-        )
-        rmse_tornadox_rel = jnp.linalg.norm(
-            error_tornadox_abs / mean_reference
-        ) / jnp.sqrt(mean_reference.size)
-        rmse_tornadox_abs = jnp.linalg.norm(error_tornadox_abs) / jnp.sqrt(
-            mean_reference.size
-        )
+            dim = PDE_PNMOL.y0.size
+            print(
+                f"\n======| Experiment {i_exp} of {num_exp_total} +++ dt={dt}, dx={dx} (state dimension: {dim} = 3 * {dim/3}) \n"
+            )
 
-        chi2_white = (
-            error_white_abs
-            @ jnp.linalg.solve(cov_white, error_white_abs)
-            / error_white_abs.size
-        )
-        chi2_tornadox = (
-            error_tornadox_abs
-            @ jnp.linalg.solve(cov_tornadox, error_tornadox_abs)
-            / error_tornadox_abs.size
-        )
+            mean_white, std_white, cov_white, elapsed_time_white = (
+                solve_pde_pnmol_white(
+                    PDE_PNMOL,
+                    dt=dt,
+                    nu=NUM_DERIVATIVES,
+                    progressbar=PROGRESSBAR,
+                    kernel=KERNEL_DIFFUSION_PNMOL,
+                )
+            )
 
-        mean_std_white = jnp.mean(std_white)
-        mean_std_tornadox = jnp.mean(std_tornadox)
+            (
+                mean_tornadox,
+                std_tornadox,
+                cov_tornadox,
+                elapsed_time_tornadox,
+            ) = solve_pde_tornadox(
+                PDE_PNMOL, dt=dt, nu=NUM_DERIVATIVES, progressbar=PROGRESSBAR
+            )
 
-        RESULT_WHITE["error_abs"][i_dx, i_dt] = rmse_white_abs
-        RESULT_WHITE["error_rel"][i_dx, i_dt] = rmse_white_rel
-        RESULT_WHITE["std"][i_dx, i_dt] = mean_std_white
-        RESULT_WHITE["runtime"][i_dx, i_dt] = elapsed_time_white
-        RESULT_WHITE["chi2"][i_dx, i_dt] = chi2_white
-        RESULT_WHITE["dt"][i_dx, i_dt] = dt
-        RESULT_WHITE["dx"][i_dx, i_dt] = dx
+            error_white_abs = jnp.abs(mean_white - mean_reference)
+            error_tornadox_abs = jnp.abs(mean_tornadox - mean_reference)
+            rmse_white_rel = jnp.linalg.norm(
+                error_white_abs / mean_reference
+            ) / jnp.sqrt(mean_reference.size)
+            rmse_white_abs = jnp.linalg.norm(error_white_abs) / jnp.sqrt(
+                mean_reference.size
+            )
+            rmse_tornadox_rel = jnp.linalg.norm(
+                error_tornadox_abs / mean_reference
+            ) / jnp.sqrt(mean_reference.size)
+            rmse_tornadox_abs = jnp.linalg.norm(error_tornadox_abs) / jnp.sqrt(
+                mean_reference.size
+            )
 
-        RESULT_TORNADOX["error_abs"][i_dx, i_dt] = rmse_tornadox_abs
-        RESULT_TORNADOX["error_rel"][i_dx, i_dt] = rmse_tornadox_rel
-        RESULT_TORNADOX["std"][i_dx, i_dt] = mean_std_tornadox
-        RESULT_TORNADOX["runtime"][i_dx, i_dt] = elapsed_time_tornadox
-        RESULT_TORNADOX["chi2"][i_dx, i_dt] = chi2_tornadox
-        RESULT_TORNADOX["dt"][i_dx, i_dt] = dt
-        RESULT_TORNADOX["dx"][i_dx, i_dt] = dx
+            chi2_white = (
+                error_white_abs
+                @ jnp.linalg.solve(cov_white, error_white_abs)
+                / error_white_abs.size
+            )
+            chi2_tornadox = (
+                error_tornadox_abs
+                @ jnp.linalg.solve(cov_tornadox, error_tornadox_abs)
+                / error_tornadox_abs.size
+            )
 
-        print(
-            f"MOL:\n\tRMSE={rmse_tornadox_rel}, chi2={chi2_tornadox}, time={elapsed_time_tornadox}"
-        )
-        print(
-            f"PNMOL(white):\n\tRMSE={rmse_white_rel}, chi2={chi2_white}, time={elapsed_time_white}"
-        )
+            mean_std_white = jnp.mean(std_white)
+            mean_std_tornadox = jnp.mean(std_tornadox)
+
+            RESULT_WHITE["error_abs"][i_dx, i_dt] = rmse_white_abs
+            RESULT_WHITE["error_rel"][i_dx, i_dt] = rmse_white_rel
+            RESULT_WHITE["std"][i_dx, i_dt] = mean_std_white
+            RESULT_WHITE["runtime"][i_dx, i_dt] = elapsed_time_white
+            RESULT_WHITE["chi2"][i_dx, i_dt] = chi2_white
+            RESULT_WHITE["dt"][i_dx, i_dt] = dt
+            RESULT_WHITE["dx"][i_dx, i_dt] = dx
+
+            RESULT_TORNADOX["error_abs"][i_dx, i_dt] = rmse_tornadox_abs
+            RESULT_TORNADOX["error_rel"][i_dx, i_dt] = rmse_tornadox_rel
+            RESULT_TORNADOX["std"][i_dx, i_dt] = mean_std_tornadox
+            RESULT_TORNADOX["runtime"][i_dx, i_dt] = elapsed_time_tornadox
+            RESULT_TORNADOX["chi2"][i_dx, i_dt] = chi2_tornadox
+            RESULT_TORNADOX["dt"][i_dx, i_dt] = dt
+            RESULT_TORNADOX["dx"][i_dx, i_dt] = dx
+
+            print(
+                f"MOL:\n\tRMSE={rmse_tornadox_rel}, chi2={chi2_tornadox}, time={elapsed_time_tornadox}"
+            )
+            print(
+                f"PNMOL(white):\n\tRMSE={rmse_white_rel}, chi2={chi2_white}, time={elapsed_time_white}"
+            )
+
+    save_result(RESULT_WHITE, prefix="pnmol_white")
+    save_result(RESULT_TORNADOX, prefix="tornadox")
 
 
-save_result(RESULT_WHITE, prefix="pnmol_white")
-save_result(RESULT_TORNADOX, prefix="tornadox")
+if __name__ == "__main__":
+    main()

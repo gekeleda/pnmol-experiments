@@ -131,7 +131,7 @@ def figure_1_singlerow(
     results_reference = results[-1]
     means_reference, *_, x_reference = results_reference
 
-    figure_size = (AISTATS_LINEWIDTH_DOUBLE, 0.4 * AISTATS_TEXTWIDTH_SINGLE)
+    figure_size = (1.2 * AISTATS_LINEWIDTH_DOUBLE, 0.5 * AISTATS_TEXTWIDTH_SINGLE)
     fig, axes = plt.subplots(
         nrows=1,
         ncols=4,
@@ -146,6 +146,9 @@ def figure_1_singlerow(
     axes = np.flip(axes)
     ax_mol_error, ax_mol_mean = axes[:2]
     ax_pnmol_mean, ax_pnmol_error = axes[2:]
+
+    ax_mol_error.set_ylabel(methods[0])
+    ax_pnmol_error.set_ylabel(methods[1])
 
     contour_args = {"alpha": 0.7, "levels": 20}
     contour_args_means = {"vmin": 0.0, "vmax": 0.1, "cmap": "Greys"}
@@ -185,11 +188,15 @@ def figure_1_singlerow(
     )
 
     title_style = {"loc": "left", "fontsize": "small"}
-    ax_mol_error.set_title(r"$\bf MOL/1$. " + "Error/Uncertainty Ratio", **title_style)
-    ax_mol_mean.set_title(r"$\bf MOL/2$. " + "Posterior mean", **title_style)
+    ax_mol_error.set_title(
+        r"$\bf WHITE/1$. " + "Error/Uncertainty Ratio", **title_style
+    )
+    ax_mol_mean.set_title(r"$\bf WHITE/2$. " + "Posterior mean", **title_style)
 
-    ax_pnmol_error.set_title(r"$\bf PN/1$. " + "Error/Uncertainty Ratio", **title_style)
-    ax_pnmol_mean.set_title(r"$\bf PN/2$. " + "Posterior mean", **title_style)
+    ax_pnmol_error.set_title(
+        r"$\bf LATENT/1$. " + "Error/Uncertainty Ratio", **title_style
+    )
+    ax_pnmol_mean.set_title(r"$\bf LATENT/2$. " + "Posterior mean", **title_style)
 
     plt.savefig(path + "figure.pdf")
     plt.show()
@@ -815,12 +822,12 @@ def figure_4():
 
 
 def main():
-    # figure_1()
-    # figure_1_singlerow()
+    figure_1()
+    figure_1_singlerow()
     # figure_2()
     # figure_3()
     # figure_3_2x2()
-    figure_4()
+    # figure_4()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 """Work-precision diagrams and so on."""
 
+import argparse
 import time
 
 import jax
@@ -10,7 +11,20 @@ from scipy.integrate import solve_ivp
 
 import pnmol
 
-pde_kwargs = {"t0": 0.0, "tmax": 6.0}
+parser = argparse.ArgumentParser()
+parser.add_argument("--t0", type=float, default=0.0)
+parser.add_argument("--tmax", type=float, default=6.0)
+parser.add_argument("--ref_scale", type=int, default=7)
+
+args = parser.parse_args()
+
+# print the arguments
+print(f"t0: {args.t0}")
+print(f"tmax: {args.tmax}")
+print(f"ref_scale: {args.ref_scale}")
+
+# PDE
+pde_kwargs = {"t0": args.t0, "tmax": args.tmax}
 
 for dx in [0.01, 0.05, 0.2]:
     pde = pnmol.pde.examples.burgers_1d_discretized(
@@ -21,7 +35,7 @@ for dx in [0.01, 0.05, 0.2]:
     )
     ivp = pde.to_tornadox_ivp()
 
-    ref_scale = 7
+    ref_scale = args.ref_scale
     pde_ref = pnmol.pde.examples.burgers_1d_discretized(
         **pde_kwargs,
         dx=dx / ref_scale,
@@ -98,7 +112,9 @@ for dx in [0.01, 0.05, 0.2]:
         print(f"cov_final_no_xi.shape={cov_final_no_xi.shape}")
         cov_final_latent_interesting = solver.E0 @ cov_final_no_xi @ solver.E0.T
 
-        print(f"cov_final_latent_interesting.shape={cov_final_latent_interesting.shape}")
+        print(
+            f"cov_final_latent_interesting.shape={cov_final_latent_interesting.shape}"
+        )
 
         cov_final_latent_u = cov_final_latent_interesting[1:-1, 1:-1]
 
