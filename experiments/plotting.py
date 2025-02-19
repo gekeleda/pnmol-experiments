@@ -615,7 +615,7 @@ def figure_3_2x2(path=PATH_RESULTS, methods=("pnmol_white", "tornadox")):
         sharey=True,
         constrained_layout=True,
     )
-    print(results)
+    # print(results)
     vmin_err_rel = jnp.minimum(results[0][0].min(), results[1][0].min())
     vmax_err_rel = jnp.maximum(results[0][0].max(), results[1][0].max())
     # vmax_err_rel = 1.0
@@ -630,7 +630,7 @@ def figure_3_2x2(path=PATH_RESULTS, methods=("pnmol_white", "tornadox")):
     for axis_row, method, result in zip(axes.T, methods, results):
 
         err_mat_rel, err_mat_abs, std_mat, chi2_mat, runtime_mat, DTs, DXs = result
-        print(DTs, DXs)
+        # print(DTs, DXs)
         extents = [
             0.0,
             float(DTs.shape[0]),
