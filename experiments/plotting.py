@@ -830,9 +830,9 @@ def figure_4():
 def main():
     # figure_1()
     # figure_1_singlerow()
-    figure_2()
+    # figure_2()
     # figure_3()
-    # figure_3_2x2()
+    figure_3_2x2()
     # figure_4()
 
 

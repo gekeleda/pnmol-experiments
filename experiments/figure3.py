@@ -21,7 +21,13 @@ def solve_pde_reference(pde, *, high_res_factor_dx):
     t_eval = jnp.array([pde.tmax])
     ivp = pde.to_tornadox_ivp()
     sol = scipy.integrate.solve_ivp(
-        jax.jit(ivp.f), ivp.t_span, ivp.y0, t_eval=t_eval, atol=1e-10, rtol=1e-10
+        jax.jit(ivp.f),
+        ivp.t_span,
+        ivp.y0,
+        method="LSODA",
+        t_eval=t_eval,
+        atol=1e-7,
+        rtol=1e-7,
     )
 
     mean = sol.y.T
@@ -222,7 +228,9 @@ def main():
     #     pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise(output_scale=1e-3), num=3
     # )
 
-    KERNEL_DIFFUSION_PNMOL = pnmol.kernels.Matern52() + pnmol.kernels.WhiteNoise()
+    KERNEL_DIFFUSION_PNMOL = pnmol.kernels.SquareExponential(
+        input_scale=3.2, output_scale=0.05
+    ) + pnmol.kernels.WhiteNoise(output_scale=1e-3)
     for i_dx, dx in enumerate(sorted(DXs)):
         # PDE problems
         PDE_PNMOL = pnmol.pde.examples.burgers_1d_discretized(
@@ -232,7 +240,7 @@ def main():
             stencil_size_interior=STENCIL_SIZE,
             stencil_size_boundary=STENCIL_SIZE + 2,
             nugget_gram_matrix_fd=NUGGET_COV_FD,
-            kernel=pnmol.kernels.SquareExponential(),
+            kernel=KERNEL_DIFFUSION_PNMOL,
             diffusion_rate=DIFFUSION_RATE,
         )
 
@@ -244,7 +252,8 @@ def main():
             stencil_size_interior=STENCIL_SIZE,
             stencil_size_boundary=STENCIL_SIZE + 1,
             nugget_gram_matrix_fd=NUGGET_COV_FD,
-            kernel=pnmol.kernels.SquareExponential(),
+            kernel=KERNEL_DIFFUSION_PNMOL,
+            diffusion_rate=DIFFUSION_RATE,
         )
         mean_reference = solve_pde_reference(
             PDE_REFERENCE, high_res_factor_dx=HIGH_RES_FACTOR_DX
